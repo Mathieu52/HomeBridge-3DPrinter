@@ -1,34 +1,36 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 
-import { ExampleHomebridgePlatform } from './platform';
+import { Homebridge3DPrinterPlatform } from './platform';
 
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
  * Each accessory may expose multiple services of different service types.
  */
-export class ExamplePlatformAccessory {
+export class PrinterAccessory {
   private service: Service;
 
   /**
    * These are just used to create a working example
    * You should implement your own code to track the state of your accessory
    */
-  private exampleStates = {
+  private printerStates = {
     On: false,
-    Brightness: 100,
+    Printing : false,
+    NozzleTemperature: 100,
+    BedTemperature: 100,
   };
 
   constructor(
-    private readonly platform: ExampleHomebridgePlatform,
+    private readonly platform: Homebridge3DPrinterPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
 
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Default-Manufacturer')
-      .setCharacteristic(this.platform.Characteristic.Model, 'Default-Model')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'Default-Serial');
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Creality')
+      .setCharacteristic(this.platform.Characteristic.Model, 'Ender 3 Pro')
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'P202J06K10134');
 
     // get the LightBulb service if it exists, otherwise create a new LightBulb service
     // you can create multiple services for each accessory
@@ -43,12 +45,13 @@ export class ExamplePlatformAccessory {
 
     // register handlers for the On/Off Characteristic
     this.service.getCharacteristic(this.platform.Characteristic.On)
-      .onSet(this.setOn.bind(this))                // SET - bind to the `setOn` method below
       .onGet(this.getOn.bind(this));               // GET - bind to the `getOn` method below
 
-    // register handlers for the Brightness Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.Brightness)
-      .onSet(this.setBrightness.bind(this));       // SET - bind to the 'setBrightness` method below
+    this.service.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
+      .onGet(this.getNozzleTemperature.bind(this))
+      .onSet(this.setBedTemperature.bind(this))
+      .onGet(this.getBedTemperature.bind(this))
+      .onSet(this.setBedTemperature.bind(this));
 
     /**
      * Creating multiple services of the same type.
@@ -62,11 +65,11 @@ export class ExamplePlatformAccessory {
      */
 
     // Example: add two "motion sensor" services to the accessory
-    const motionSensorOneService = this.accessory.getService('Motion Sensor One Name') ||
-      this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor One Name', 'YourUniqueIdentifier-1');
+    const printer = this.accessory.getService('Ender 3 Pro') ||
+      this.accessory.addService(this.platform.Service.Lightbulb, 'Ender 3 Pro', this.platform.Characteristic.SerialNumber);
 
-    const motionSensorTwoService = this.accessory.getService('Motion Sensor Two Name') ||
-      this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor Two Name', 'YourUniqueIdentifier-2');
+    //const motionSensorTwoService = this.accessory.getService('Motion Sensor Two Name') ||
+      //this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor Two Name', 'YourUniqueIdentifier-2');
 
     /**
      * Updating characteristics values asynchronously.
@@ -77,6 +80,7 @@ export class ExamplePlatformAccessory {
      * the `updateCharacteristic` method.
      *
      */
+    /*
     let motionDetected = false;
     setInterval(() => {
       // EXAMPLE - inverse the trigger
@@ -89,17 +93,26 @@ export class ExamplePlatformAccessory {
       this.platform.log.debug('Triggering motionSensorOneService:', motionDetected);
       this.platform.log.debug('Triggering motionSensorTwoService:', !motionDetected);
     }, 10000);
+    */
   }
 
   /**
    * Handle "SET" requests from HomeKit
    * These are sent when the user changes the state of an accessory, for example, turning on a Light bulb.
    */
-  async setOn(value: CharacteristicValue) {
-    // implement your own code to turn your device on/off
-    this.exampleStates.On = value as boolean;
 
-    this.platform.log.debug('Set Characteristic On ->', value);
+  async setNozzleTemperature(value: CharacteristicValue) {
+    // implement your own code to set the brightness
+    this.printerStates.NozzleTemperature = value as number;
+
+    this.platform.log.debug('Set Characteristic NozzleTemperature -> ', value);
+  }
+
+  async setBedTemperature(value: CharacteristicValue) {
+    // implement your own code to set the brightness
+    this.printerStates.BedTemperature = value as number;
+
+    this.platform.log.debug('Set Characteristic BedTemperature -> ', value);
   }
 
   /**
@@ -117,7 +130,7 @@ export class ExamplePlatformAccessory {
    */
   async getOn(): Promise<CharacteristicValue> {
     // implement your own code to check if the device is on
-    const isOn = this.exampleStates.On;
+    const isOn = this.printerStates.On;
 
     this.platform.log.debug('Get Characteristic On ->', isOn);
 
@@ -127,15 +140,27 @@ export class ExamplePlatformAccessory {
     return isOn;
   }
 
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, changing the Brightness
-   */
-  async setBrightness(value: CharacteristicValue) {
-    // implement your own code to set the brightness
-    this.exampleStates.Brightness = value as number;
+  async getNozzleTemperature(): Promise<CharacteristicValue> {
+    // implement your own code to check if the device is on
+    const temperature = this.printerStates.NozzleTemperature as number;
 
-    this.platform.log.debug('Set Characteristic Brightness -> ', value);
+    this.platform.log.debug('Get Characteristic On ->', temperature);
+
+    // if you need to return an error to show the device as "Not Responding" in the Home app:
+    // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+
+    return temperature;
   }
 
+  async getBedTemperature(): Promise<CharacteristicValue> {
+    // implement your own code to check if the device is on
+    const temperature = this.printerStates.BedTemperature as number;
+
+    this.platform.log.debug('Get Characteristic On ->', temperature);
+
+    // if you need to return an error to show the device as "Not Responding" in the Home app:
+    // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+
+    return temperature;
+  }
 }

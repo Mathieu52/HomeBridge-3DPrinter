@@ -1,5 +1,5 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
+  "pluginAlias": "3D Printer",
   "pluginType": "platform",
   "singular": true,
   "schema": {
